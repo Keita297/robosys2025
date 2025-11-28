@@ -1,5 +1,5 @@
 # moodcalc
-
+![test](https://github.com/Keita297/robosys2025/actions/workflows/test.yml/badge.svg)
 `moodcalc` は、入力された日本語文章から簡易的に感情スコアを計算し、文章の傾向を判定する Bash スクリプトです。
 
 ---
