@@ -1,12 +1,8 @@
 #!/bin/bash
 
 # moodcalc - 簡易感情計算スクリプト
-# 標準入力の文章を解析し、感情スコアと傾向を出力する
-#
-# 使い方:
-#   echo "今日はいい日だ" | ./scripts/moodcalc
-#   ./scripts/moodcalc "今日はいい日だ"    # 引数でも可
-# 2025/11/28 作成者:荒川佳汰
+#SPDX-FileCopyrightText: 2025 Keita Arakawa <kei86291234@icloud.com>
+#SPDX-License-Identifier: BSD-3-Clause
 
 # 入力取得 
 if [ $# -ge 1 ]; then
