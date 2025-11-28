@@ -1,0 +1,144 @@
+#!/bin/bash
+
+# moodcalc - 簡易感情計算スクリプト（完全オリジナル）
+# 標準入力の文章を解析し、感情スコアと傾向を出力する
+#
+# 使い方:
+#   echo "今日はいい日だ" | ./scripts/moodcalc
+#   ./scripts/moodcalc "今日はいい日だ"    # 引数でも可
+
+# --- 入力取得 ---
+if [ $# -ge 1 ]; then
+  # 引数があればそれを結合して入力扱いにする
+  input="$*"
+else
+  # 標準入力から読み取る（改行を含む）
+  if [ -t 0 ]; then
+    echo "標準入力または引数でテキストを渡してください。" >&2
+    exit 1
+  fi
+  input=$(cat)
+fi
+
+# 空入力チェック
+trimmed=$(echo -n "$input" | tr -d '[:space:]')
+if [ -z "$trimmed" ]; then
+  echo "入力が空です。" >&2
+  exit 1
+fi
+
+# --- 単語リスト（オリジナル／日本語） ---
+# それぞれの要素は「部分一致」で数える（厳密語幹処理なし）
+positive_keywords=("嬉" "楽" "好き" "幸" "最高" "嬉しい" "良い" "よかった" "感謝" "笑" "幸せ" "ワクワク" "快適")
+negative_keywords=("疲" "嫌" "悲" "最悪" "痛" "怒" "泣" "怖" "憂鬱" "不安" "失敗" "悔しい" "困る")
+
+# --- スコア計算ルール（オリジナル） ---
+# 基本スコア = 出現する肯定語の数 - 出現する否定語の数
+# ボーナス/ペナルティ:
+#  - 文長ボーナス（文字数>50で +1）
+#  - 感嘆符ボーナス（ '！' または '!' の数を +1/個）
+#  - 強調ボーナス（'とても','めっちゃ','超' の出現で +1/語）
+#  - ネガ強化（'全然','絶対' と否定語が一緒にある場合 -1 追加）
+# 最終スコアは整数（-clamp-> -10..+10）し、5段階の傾向にマッピング
+
+# カウント処理（部分一致）
+pos_hits=0
+neg_hits=0
+pos_list=()
+neg_list=()
+
+for p in "${positive_keywords[@]}"; do
+  # grep -o を使って重複カウント（文字列の部分一致）
+  cnt=$(echo "$input" | grep -o "$p" | wc -l)
+  if [ "$cnt" -gt 0 ]; then
+    pos_hits=$((pos_hits + cnt))
+    pos_list+=("$p:$cnt")
+  fi
+done
+
+for n in "${negative_keywords[@]}"; do
+  cnt=$(echo "$input" | grep -o "$n" | wc -l)
+  if [ "$cnt" -gt 0 ]; then
+    neg_hits=$((neg_hits + cnt))
+    neg_list+=("$n:$cnt")
+  fi
+done
+
+# 文長ボーナス
+char_len=$(echo -n "$input" | wc -m)
+len_bonus=0
+if [ "$char_len" -gt 50 ]; then
+  len_bonus=1
+fi
+
+# 感嘆符ボーナス
+excl_count=$(echo -n "$input" | grep -o '[！!]' | wc -l)
+excl_bonus=$excl_count
+
+# 強調語ボーナス
+emphasizers=("とても" "めっちゃ" "超" "かなり")
+emph_bonus=0
+for e in "${emphasizers[@]}"; do
+  c=$(echo "$input" | grep -o "$e" | wc -l)
+  if [ "$c" -gt 0 ]; then
+    emph_bonus=$((emph_bonus + c))
+  fi
+done
+
+# ネガ強化（例："全然良くない" のような否定強調）
+neg_enhancers=("全然" "絶対" "まったく")
+neg_enhance_penalty=0
+for ne in "${neg_enhancers[@]}"; do
+  c=$(echo "$input" | grep -o "$ne" | wc -l)
+  if [ "$c" -gt 0 ] && [ "$neg_hits" -gt 0 ]; then
+    neg_enhance_penalty=$((neg_enhance_penalty + c))
+  fi
+done
+
+# --- 合成スコア ---
+raw_score=$(( pos_hits - neg_hits + len_bonus + excl_bonus + emph_bonus - neg_enhance_penalty ))
+
+# clamp -10 .. +10
+if [ "$raw_score" -gt 10 ]; then raw_score=10; fi
+if [ "$raw_score" -lt -10 ]; then raw_score=-10; fi
+
+# 正規化（-10..+10 -> -5..+5）
+# (整数) normalized = raw_score / 2 ただし小数は四捨五入（bc）
+normalized=$(echo "scale=0; ($raw_score)/2" | bc)
+
+# 傾向ラベル（5段階）
+if [ "$normalized" -ge 3 ]; then
+  trend="非常に明るい"
+elif [ "$normalized" -ge 1 ]; then
+  trend="明るめ"
+elif [ "$normalized" -eq 0 ]; then
+  trend="中立"
+elif [ "$normalized" -le -3 ]; then
+  trend="非常に暗い"
+else
+  trend="暗め"
+fi
+
+# 出力（見やすく）
+echo "============================"
+echo "入力文字数: $char_len"
+echo "肯定語 出現数: $pos_hits"
+echo "否定語 出現数: $neg_hits"
+echo "文長ボーナス: $len_bonus"
+echo "感嘆符ボーナス: $excl_bonus"
+echo "強調語ボーナス: $emph_bonus"
+echo "否定強化ペナルティ: $neg_enhance_penalty"
+echo ""
+echo "生スコア: $raw_score  (範囲 -10..+10)"
+echo "正規化スコア: $normalized  (範囲 -5..+5)"
+echo "傾向: $trend"
+echo ""
+# マッチした単語の一覧（あれば）
+if [ ${#pos_list[@]} -gt 0 ]; then
+  echo "肯定語ヒット: ${pos_list[*]}"
+fi
+if [ ${#neg_list[@]} -gt 0 ]; then
+  echo "否定語ヒット: ${neg_list[*]}"
+fi
+echo "============================"
+
