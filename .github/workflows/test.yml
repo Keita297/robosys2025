@@ -1,18 +1,15 @@
 name: test
 
-on: [push, pull_request]
+on: push
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
       - uses: actions/checkout@v3
-      - name: Make moodcalc executable
-        run: chmod +x ./scripts/moodcalc
-      - name: Run test.bash
+      - name: All test
         run: bash -xv ./test.bash
-      - name: Run moodcalc sample
-        run: |
-          ./scripts/moodcalc "今日は嬉しい！"
-          echo "全然悲しい" | ./scripts/moodcalc
 
