@@ -7,7 +7,6 @@
 - このパッケージで利用している内容は，下記のスライド資料（CC-BY-SA 4.0 by Ryuichi Ueda）を参考にして作成しました。
     - [ryuichiueda/my_slides robosys_2025](https://github.com/ryuichiueda/my_slides/tree/master/robosys_2025)
 
-- © 2025 Keita Arakawa
 
 `moodcalc` は、入力された日本語文章から簡易的に感情スコアを計算し、文章の傾向を判定する Bash スクリプトです。
 
@@ -16,8 +15,16 @@
 ## 使い方
 # ./moodcalc "今日はとても楽しくて嬉しい！"
 # echo "全然うまくいかなくて悲しい" | ./moodcalc
+# 文章を打つとその文章の感情を読み取って出力する。
 
-### 1. 実行権限を付与
-```bash
-chmod +x moodcalc
+## 必要なソフトウェア
+- Python
+  - テスト済みバージョン: 3.7~3.10
 
+## テスト環境
+- Ubuntu 24.04.1 LTS
+
+## 協力者
+   ChatGPTにエラーが出たときに教えてもらった。
+
+- © 2025 Keita Arakawa
